@@ -25,6 +25,16 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+          
+      - name: Initialize workflow variables
+        id: vars
+        run: |
+          VERSION=$(echo "${GITHUB_REF#refs/*/}" | sed s/^v//)
+          VERSION="$VERSION.0"
+          CHANGE_LOG=$(git tag -l '--format=%(contents)' ${{ github.ref_name }})
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "CHANGE_LOG=${CHANGE_LOG}" >> $GITHUB_OUTPUT
+          echo "APP_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Publish
         run: dotnet publish --configuration Release --output bin
