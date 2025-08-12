@@ -75,18 +75,18 @@ jobs:
           #          "${{ steps.create_package.outputs.filename }}"
           files: |
             *.zip
-      - name: Generate manifest
-        run: python3 ./scripts/generate_manifest.py ./artifacts/${{ env.artifact }}_${{steps.vars.outputs.VERSION}}.zip ${{steps.vars.outputs.VERSION}}
-        env:
-          CN_DOMAIN: ${{ vars.CN_DOMAIN }}
-      - name: Publish manifest
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./manifest*.json
-          tag: "manifest"
-          overwrite: true
-          file_glob: true
+#      - name: Generate manifest
+#        run: python3 ./scripts/generate_manifest.py ./artifacts/${{ env.artifact }}_${{steps.vars.outputs.VERSION}}.zip ${{steps.vars.outputs.VERSION}}
+#        env:
+#          CN_DOMAIN: ${{ vars.CN_DOMAIN }}
+#      - name: Publish manifest
+#        uses: svenstaro/upload-release-action@v2
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: ./manifest*.json
+#          tag: "manifest"
+#          overwrite: true
+#          file_glob: true
 #      - name: Update Manifest
 #        shell: cmd
 #        run: Manifest.exe ${{ steps.create_package.outputs.release_tag }}
