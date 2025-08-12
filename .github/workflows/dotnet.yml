@@ -76,7 +76,7 @@ jobs:
           files: |
             *.zip
       - name: Generate manifest
-        run: python3 ./scripts/generate_manifest.py ./artifacts/${{ env.artifact }}_${{steps.vars.outputs.VERSION}}.zip ${GITHUB_REF#refs/*/}
+        run: python3 ./scripts/generate_manifest.py ./artifacts/${{ env.artifact }}_${{steps.vars.outputs.VERSION}}.zip ${{steps.vars.outputs.VERSION}}
         env:
           CN_DOMAIN: ${{ vars.CN_DOMAIN }}
       - name: Publish manifest
