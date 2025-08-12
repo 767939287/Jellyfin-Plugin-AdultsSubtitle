@@ -140,7 +140,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             var results = new List<RemoteSubtitleInfo>();
             using var client = _httpClientFactory.CreateClient();
             
-            var downloadUrl = await Api.SearchDownloadUrlAsyncWithTest(_logger, client, subCatLanguage, searchName, cancellationToken);
+            var downloadUrl = await Api.SearchDownloadUrlAsyncWithTest(client, subCatLanguage, searchName, cancellationToken, str => { _logger.LogInformation(str);});
             if (!string.IsNullOrWhiteSpace(downloadUrl))
             {
                 var id = Guid.NewGuid().ToString("N");

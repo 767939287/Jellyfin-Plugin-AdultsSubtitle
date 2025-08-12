@@ -1,7 +1,6 @@
 ﻿using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
 
 namespace Jellyfin_Plugin_AdultsSubtitle
 {
@@ -23,7 +22,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             "-c",
         ];
         
-        public static async Task<string?> SearchDownloadUrlAsyncWithTest(ILogger logger, HttpClient client, string language, string name, CancellationToken cancellationToken)
+        public static async Task<string?> SearchDownloadUrlAsyncWithTest(HttpClient client, string language, string name, CancellationToken cancellationToken, Action<string> logger)
         {
             var response = await client.GetAsync($"https://www.subtitlecat.com/index.php?search={name}", cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -51,19 +50,19 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 }
                 return string.Compare(a, b, StringComparison.Ordinal);
             });
-            logger.LogInformation($"排序后url = {urls}");
+            logger.Invoke($"排序后url = {urls}");
             
             foreach (var url in urls)
             {
                 var downloadUrl = await SearchDownloadUrlAsync(client, language, url, cancellationToken);
-                logger.LogInformation($"search 待检测链接 {name} {language} subtitle  download url --->{downloadUrl} ");
+                logger.Invoke($"search 待检测链接 {name} {language} subtitle  download url --->{downloadUrl} ");
                 if (string.IsNullOrWhiteSpace(downloadUrl))
                 {
                     continue;
                 }
                 if (await TestContext(client, downloadUrl, logger))
                 {
-                    logger.LogInformation($"search 有效链接 {name} {language} subtitle  download url --->{downloadUrl} ");
+                    logger.Invoke($"search 有效链接 {name} {language} subtitle  download url --->{downloadUrl} ");
                     return downloadUrl;
                 }
             }
@@ -98,7 +97,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
         
         // 字幕文件检测必须>该值
         private const long MinFileSize = 1 * 1024;
-        private static async Task<bool> TestContext(HttpClient client, string url, ILogger logger)
+        private static async Task<bool> TestContext(HttpClient client, string url, Action<string> logger)
         {
             try
             {
@@ -110,7 +109,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             }
             catch (Exception ex)
             {
-                logger.LogInformation($"检测内容大小错误 ：{ex.Message}");
+                logger.Invoke($"检测内容大小错误 ：{ex.Message}");
             }
 
             return true;

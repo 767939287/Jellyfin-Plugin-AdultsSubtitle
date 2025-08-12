@@ -173,7 +173,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                         try
                         {
                             
-                            var downloadUrl = await Api.SearchDownloadUrlAsyncWithTest(_logger, client, subCatLanguage, movie.FileNameWithoutExtension, cancellationToken);
+                            var downloadUrl = await Api.SearchDownloadUrlAsyncWithTest(client, subCatLanguage, movie.FileNameWithoutExtension, cancellationToken, str => { _logger.LogInformation(str);});
                             if (!string.IsNullOrWhiteSpace(downloadUrl))
                             {
                                 _logger.LogInformation($"start download subtitle {downloadUrl}");
