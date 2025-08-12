@@ -139,24 +139,19 @@ namespace Jellyfin_Plugin_AdultsSubtitle
 
             var results = new List<RemoteSubtitleInfo>();
             using var client = _httpClientFactory.CreateClient();
-            var searchResult = await Api.SearchAsync(client, searchName, cancellationToken);
-            _logger.LogInformation($"search {searchName} {request.Language} subtitle  result --->{searchResult} ");
-            if (!string.IsNullOrWhiteSpace(searchResult))
+            
+            var downloadUrl = await Api.SearchDownloadUrlAsyncWithTest(_logger, client, subCatLanguage, searchName, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(downloadUrl))
             {
-                var downloadUrl = await Api.SearchDownloadUrlAsync(client, subCatLanguage, searchResult, cancellationToken);
-                _logger.LogInformation($"search {searchName} {request.Language} subtitle  download url --->{downloadUrl} ");
-                if (!string.IsNullOrWhiteSpace(downloadUrl))
+                var id = Guid.NewGuid().ToString("N");
+                results.Add(new RemoteSubtitleInfo()
                 {
-                    var id = Guid.NewGuid().ToString("N");
-                    results.Add(new RemoteSubtitleInfo()
-                    {
-                        Format = "srt",
-                        Name = downloadUrl[(downloadUrl.LastIndexOf('/') + 1)..],
-                        ProviderName = Name,
-                        Id = id
-                    });
-                    Api.DownloadUrls.TryAdd(id, (downloadUrl, request.Language));
-                }
+                    Format = "srt",
+                    Name = downloadUrl[(downloadUrl.LastIndexOf('/') + 1)..],
+                    ProviderName = Name,
+                    Id = id
+                });
+                Api.DownloadUrls.TryAdd(id, (downloadUrl, request.Language));
             }
             return results;
         }

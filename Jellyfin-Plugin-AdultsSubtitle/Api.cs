@@ -1,6 +1,7 @@
 ﻿using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin_Plugin_AdultsSubtitle
 {
@@ -14,6 +15,61 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             {"zh-CN","zh-CN"},
         };
         private static readonly HtmlParser _parser = new();
+
+        private static readonly List<string> OrderSuffix = [
+            "zh-CN",
+            ".zh",
+            "-zh",
+            "-c",
+        ];
+        
+        public static async Task<string?> SearchDownloadUrlAsyncWithTest(ILogger logger, HttpClient client, string language, string name, CancellationToken cancellationToken)
+        {
+            var response = await client.GetAsync($"https://www.subtitlecat.com/index.php?search={name}", cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var document = _parser.ParseDocument(content);
+            // 删选出全部匹配的数据
+            var urls = document
+                .All
+                .Where(p => p is IHtmlAnchorElement anchor && anchor.Href.Contains(name, StringComparison.CurrentCultureIgnoreCase))
+                .Select(p => ((IHtmlAnchorElement)p).Href.Replace("about://", ""))
+                .ToList();
+            
+            // 优先使用
+            urls.Sort((a, b) =>
+            {
+                if (a == b)
+                {
+                    return 0;
+                }
+                
+                var aPriority = GetPriority(a);
+                var bPriority = GetPriority(b);
+                if (aPriority != bPriority)
+                {
+                    return bPriority.CompareTo(aPriority);
+                }
+                return string.Compare(a, b, StringComparison.Ordinal);
+            });
+            logger.LogInformation($"排序后url = {urls}");
+            
+            foreach (var url in urls)
+            {
+                var downloadUrl = await SearchDownloadUrlAsync(client, language, url, cancellationToken);
+                logger.LogInformation($"search 待检测链接 {name} {language} subtitle  download url --->{downloadUrl} ");
+                if (string.IsNullOrWhiteSpace(downloadUrl))
+                {
+                    continue;
+                }
+                if (await TestContext(client, downloadUrl, logger))
+                {
+                    logger.LogInformation($"search 有效链接 {name} {language} subtitle  download url --->{downloadUrl} ");
+                    return downloadUrl;
+                }
+            }
+            return null;
+        }
+
         public static async Task<string?> SearchDownloadUrlAsync(HttpClient client, string language, string url, CancellationToken cancellationToken)
         {
             var response = await client.GetAsync($"https://www.subtitlecat.com{url}", cancellationToken);
@@ -39,5 +95,42 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             }
             return null;
         }
+        
+        // 字幕文件检测必须>该值
+        private const long MinFileSize = 1 * 1024;
+        private static async Task<bool> TestContext(HttpClient client, string url, ILogger logger)
+        {
+            try
+            {
+                // 发送HEAD请求（仅获取头信息，不下载正文，效率更高）
+                var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, url));
+                // 确保请求成功
+                response.EnsureSuccessStatusCode();
+                return (response.Content.Headers.ContentLength??0) > MinFileSize;
+            }
+            catch (Exception ex)
+            {
+                logger.LogInformation($"检测内容大小错误 ：{ex.Message}");
+            }
+
+            return true;
+        }
+
+        private static int GetPriority(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return 0;
+
+            var orderSuffixCount = OrderSuffix.Count;
+            for (var i = 0; i < orderSuffixCount; i++)
+            {
+                if (name.Contains(OrderSuffix[i]))
+                {
+                    return orderSuffixCount - i;
+                }
+            }
+            return 0;
+        }
+
     }
 }

@@ -172,32 +172,53 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                         using var client = _httpClientFactory.CreateClient();
                         try
                         {
-                            var searchResult = await Api.SearchAsync(client, movie.FileNameWithoutExtension, cancellationToken);
-                            _logger.LogInformation($"search {movie.FileNameWithoutExtension} {language} subtitle  result --->{searchResult} ");
-                            if (!string.IsNullOrWhiteSpace(searchResult))
+                            
+                            var downloadUrl = await Api.SearchDownloadUrlAsyncWithTest(_logger, client, subCatLanguage, movie.FileNameWithoutExtension, cancellationToken);
+                            if (!string.IsNullOrWhiteSpace(downloadUrl))
                             {
-                                var downloadUrl = await Api.SearchDownloadUrlAsync(client, subCatLanguage, searchResult, cancellationToken);
-                                _logger.LogInformation($"search{movie.FileNameWithoutExtension} {language} subtitle  download url --->{downloadUrl} ");
-                                if (!string.IsNullOrWhiteSpace(downloadUrl))
+                                _logger.LogInformation($"start download subtitle {downloadUrl}");
+
+                                var response = await client.GetAsync(downloadUrl, cancellationToken);
+                                var ms = new MemoryStream();
+                                var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                                await stream.CopyToAsync(ms, cancellationToken);
+                                ms.Position = 0;
+                                _logger.LogInformation($"subtitle {downloadUrl} download comlete");
+
+                                await _subtitleManager.UploadSubtitle(movie, new SubtitleResponse()
                                 {
-                                    _logger.LogInformation($"start download subtitle {downloadUrl}");
-
-                                    var response = await client.GetAsync(downloadUrl, cancellationToken);
-                                    var ms = new MemoryStream();
-                                    var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                                    await stream.CopyToAsync(ms, cancellationToken);
-                                    ms.Position = 0;
-                                    _logger.LogInformation($"subtitle {downloadUrl} download comlete");
-
-
-                                    await _subtitleManager.UploadSubtitle(movie, new SubtitleResponse()
-                                    {
-                                        Format = "srt",
-                                        Language = language,
-                                        Stream = ms,
-                                    });
-                                }
+                                    Format = "srt",
+                                    Language = language,
+                                    Stream = ms,
+                                });
                             }
+                            
+                            // var searchResult = await Api.SearchAsync(client, movie.FileNameWithoutExtension, cancellationToken);
+                            // _logger.LogInformation($"search {movie.FileNameWithoutExtension} {language} subtitle  result --->{searchResult} ");
+                            // if (!string.IsNullOrWhiteSpace(searchResult))
+                            // {
+                            //     var downloadUrl = await Api.SearchDownloadUrlAsync(client, subCatLanguage, searchResult, cancellationToken);
+                            //     _logger.LogInformation($"search{movie.FileNameWithoutExtension} {language} subtitle  download url --->{downloadUrl} ");
+                            //     if (!string.IsNullOrWhiteSpace(downloadUrl))
+                            //     {
+                            //         _logger.LogInformation($"start download subtitle {downloadUrl}");
+                            //
+                            //         var response = await client.GetAsync(downloadUrl, cancellationToken);
+                            //         var ms = new MemoryStream();
+                            //         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                            //         await stream.CopyToAsync(ms, cancellationToken);
+                            //         ms.Position = 0;
+                            //         _logger.LogInformation($"subtitle {downloadUrl} download comlete");
+                            //
+                            //
+                            //         await _subtitleManager.UploadSubtitle(movie, new SubtitleResponse()
+                            //         {
+                            //             Format = "srt",
+                            //             Language = language,
+                            //             Stream = ms,
+                            //         });
+                            //     }
+                            // }
                         }
                         catch (Exception ex)
                         {
