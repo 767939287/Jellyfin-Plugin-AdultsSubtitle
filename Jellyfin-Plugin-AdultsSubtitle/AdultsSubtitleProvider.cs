@@ -83,7 +83,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Subtitles;
 using MediaBrowser.Model.Providers;
-
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 
@@ -95,13 +95,17 @@ namespace Jellyfin_Plugin_AdultsSubtitle
         public string Name => "Adults Subtitle";
         private readonly ILogger<AdultsSubtitleProvider> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private IMemoryCache _memoryCache;
         public IEnumerable<VideoContentType> SupportedMediaTypes => [VideoContentType.Movie];
-
 
         public AdultsSubtitleProvider(ILogger<AdultsSubtitleProvider> logger, IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
+            _memoryCache = new MemoryCache(new MemoryCacheOptions
+            {
+                ExpirationScanFrequency = TimeSpan.FromMinutes(1)
+            });
         }
         public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
         {
@@ -127,6 +131,14 @@ namespace Jellyfin_Plugin_AdultsSubtitle
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> Search(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
+            var stringCode = request.MediaPath.GetHashCode();
+            if (_memoryCache.TryGetValue(stringCode, out string cacheUrl))
+            {
+                _logger.LogInformation($"存在缓存 cacheUrl={cacheUrl} , 暂时不处理");
+                return Enumerable.Empty<RemoteSubtitleInfo>();
+            }
+            _memoryCache.Set(stringCode, "temp");
+            
             var fileInfo = new FileInfo(request.MediaPath);
             var searchName = fileInfo.Name.Replace(fileInfo.Extension, string.Empty);
             _logger.LogInformation($"start search {searchName} {request.Language} subtitle ");
@@ -153,6 +165,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 });
                 Api.DownloadUrls.TryAdd(id, (downloadUrl, request.Language));
             }
+            _memoryCache.Set(stringCode, downloadUrl);
             return results;
         }
     }

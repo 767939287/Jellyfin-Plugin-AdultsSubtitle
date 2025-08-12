@@ -50,7 +50,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 }
                 return string.Compare(a, b, StringComparison.Ordinal);
             });
-            logger.Invoke($"排序后url = {urls}");
+            logger.Invoke($"排序后url = {string.Join(',', urls)}");
             
             foreach (var url in urls)
             {
