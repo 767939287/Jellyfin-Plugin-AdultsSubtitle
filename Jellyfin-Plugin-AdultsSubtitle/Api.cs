@@ -33,7 +33,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 .Where(p => p is IHtmlAnchorElement anchor && anchor.Href.Contains(name, StringComparison.CurrentCultureIgnoreCase))
                 .Select(p => ((IHtmlAnchorElement)p).Href.Replace("about://", ""))
                 .ToList();
-            
+            var originTemp = new List<string>(urls);
             // 优先使用
             urls.Sort((a, b) =>
             {
@@ -50,12 +50,10 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 }
                 return string.Compare(a, b, StringComparison.Ordinal);
             });
-            logger.Invoke($"排序后url = {string.Join(',', urls)}");
-            
+            logger.Invoke($"排序前url={string.Join(',', originTemp)}, 排序后url = {string.Join(',', urls)}");
             foreach (var url in urls)
             {
                 var downloadUrl = await SearchDownloadUrlAsync(client, language, url, cancellationToken);
-                logger.Invoke($"search 待检测链接 {name} {language} subtitle  download url --->{downloadUrl} ");
                 if (string.IsNullOrWhiteSpace(downloadUrl))
                 {
                     continue;

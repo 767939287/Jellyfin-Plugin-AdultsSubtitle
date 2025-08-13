@@ -96,16 +96,14 @@ namespace Jellyfin_Plugin_AdultsSubtitle
         private readonly ILogger<AdultsSubtitleProvider> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
         private IMemoryCache _memoryCache;
+        private readonly MemoryCacheEntryOptions _pendingGapExpiredOption = new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30) };
         public IEnumerable<VideoContentType> SupportedMediaTypes => [VideoContentType.Movie];
 
         public AdultsSubtitleProvider(ILogger<AdultsSubtitleProvider> logger, IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
-            _memoryCache = new MemoryCache(new MemoryCacheOptions
-            {
-                ExpirationScanFrequency = TimeSpan.FromMinutes(1)
-            });
+            _memoryCache = new MemoryCache(new MemoryCacheOptions());
         }
         public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
         {
@@ -165,7 +163,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 });
                 Api.DownloadUrls.TryAdd(id, (downloadUrl, request.Language));
             }
-            _memoryCache.Set(stringCode, downloadUrl);
+            _memoryCache.Set(stringCode, downloadUrl, _pendingGapExpiredOption);
             return results;
         }
     }
