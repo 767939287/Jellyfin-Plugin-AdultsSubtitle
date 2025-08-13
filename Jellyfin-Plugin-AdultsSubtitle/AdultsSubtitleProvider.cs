@@ -127,19 +127,28 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             throw new FileNotFoundException();
         }
 
+        private static readonly object LockObject = new();
         public async Task<IEnumerable<RemoteSubtitleInfo>> Search(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
             var stringCode = request.MediaPath.GetHashCode();
-            if (_memoryCache.TryGetValue(stringCode, out string cacheUrl))
+            if (_memoryCache.TryGetValue(stringCode, out string? cacheUrl))
             {
                 _logger.LogInformation($"存在缓存 cacheUrl={cacheUrl} , 暂时不处理");
                 return Enumerable.Empty<RemoteSubtitleInfo>();
             }
-            _memoryCache.Set(stringCode, "temp");
+
+            lock (LockObject)
+            {
+                if (_memoryCache.TryGetValue(stringCode, out string? _))
+                {
+                    return Enumerable.Empty<RemoteSubtitleInfo>();
+                }
+                _memoryCache.Set(stringCode, "temp", _pendingGapExpiredOption);
+            }
             
             var fileInfo = new FileInfo(request.MediaPath);
             var searchName = fileInfo.Name.Replace(fileInfo.Extension, string.Empty);
-            _logger.LogInformation($"start search {searchName} {request.Language} subtitle ");
+            _logger.LogInformation($"start search {searchName} {stringCode} {request.Language} subtitle ");
             if (!Api.LanguagesMaps.TryGetValue(request.Language,out var subCatLanguage))
             {
                 _logger.LogInformation($"language({request.Language}) not support~");

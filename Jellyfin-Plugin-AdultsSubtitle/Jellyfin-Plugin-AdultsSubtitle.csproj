@@ -18,7 +18,7 @@
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-		<OutputPath>C:\ProgramData\Jellyfin\Server\plugins\AdultsSubtitle_v$(Version)</OutputPath>
+		<OutputPath>/Users/fengymi/Library/Application Support/jellyfin/plugins/AdultsSubtitle_v$(Version)</OutputPath>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Debug.Emby'">
@@ -49,7 +49,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="AngleSharp" Version="1.1.2">
-			
 		</PackageReference>
 	</ItemGroup>
 </Project>

@@ -30,7 +30,16 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             // 删选出全部匹配的数据
             var urls = document
                 .All
-                .Where(p => p is IHtmlAnchorElement anchor && anchor.Href.Contains(name, StringComparison.CurrentCultureIgnoreCase))
+                .Where(p =>
+                {
+                    if (p is not IHtmlAnchorElement anchor)
+                    {
+                        return false;
+                    }
+                    
+                    // logger.Invoke($"请求name={name}, url={anchor.Href}");
+                    return anchor.Href.Contains(name, StringComparison.CurrentCultureIgnoreCase);
+                })
                 .Select(p => ((IHtmlAnchorElement)p).Href.Replace("about://", ""))
                 .ToList();
             var originTemp = new List<string>(urls);
@@ -50,7 +59,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 }
                 return string.Compare(a, b, StringComparison.Ordinal);
             });
-            logger.Invoke($"排序前url={string.Join(',', originTemp)}, 排序后url = {string.Join(',', urls)}");
+            logger.Invoke($"search {name} {language} subtitle 排序前url={string.Join(',', originTemp)}, 排序后url = {string.Join(',', urls)}");
             foreach (var url in urls)
             {
                 var downloadUrl = await SearchDownloadUrlAsync(client, language, url, cancellationToken);
