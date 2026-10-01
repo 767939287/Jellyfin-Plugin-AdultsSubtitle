@@ -27,7 +27,7 @@ def generate_version(filepath, version, changelog):
     return {
         'version': f"{version}.0",
         'changelog': changelog,
-        'targetAbi': '10.9.0.0',
+        'targetAbi': '12.0.0.0',
         'sourceUrl': f'https://github.com/fengymi/Jellyfin-Plugin-AdultsSubtitle/releases/v{version}/AdultsSubtitle.zip',
         'checksum': md5sum(filepath),
         'timestamp': datetime.now().strftime('%Y-%m-%dT%H:%M:%S')

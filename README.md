@@ -35,7 +35,7 @@
 
 ### 使用
 
-- jellyfin 10.9.0
+- jellyfin 12.0
 - jellyfin 插件存储库添加源
 
 ```
