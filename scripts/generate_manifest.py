@@ -19,7 +19,7 @@ def generate_manifest():
         "owner": "AdultsSubtitle",
         "category": "AdultsSubtitle",
         "guid": "898269f2-f951-c3ff-b714-9e8f785be3b2",
-        "imageUrl": "https://raw.githubusercontent.com/fengymi/Jellyfin-Plugin-AdultsSubtitle/master/Jellyfin-Plugin-AdultsSubtitle/logo.png",
+        "imageUrl": "https://raw.githubusercontent.com/767939287/Jellyfin-Plugin-AdultsSubtitle/master/Jellyfin-Plugin-AdultsSubtitle/logo.png",
         "versions": []
     }]
 
@@ -28,7 +28,8 @@ def generate_version(filepath, version, changelog):
         'version': f"{version}.0",
         'changelog': changelog,
         'targetAbi': '12.0.0.0',
-        'sourceUrl': f'https://github.com/fengymi/Jellyfin-Plugin-AdultsSubtitle/releases/v{version}/AdultsSubtitle.zip',
+
+        'sourceUrl': f'https://github.com/767939287/Jellyfin-Plugin-AdultsSubtitle/releases/download/v{version}/AdultsSubtitle_v{version}.zip',
         'checksum': md5sum(filepath),
         'timestamp': datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
     }
@@ -48,7 +49,7 @@ def main():
 
     # 解析旧 manifest
     try:
-        with urlopen('https://raw.githubusercontent.com/fengymi/Jellyfin-Plugin-AdultsSubtitle/master/manifest.json') as f:
+        with urlopen('https://raw.githubusercontent.com/767939287/Jellyfin-Plugin-AdultsSubtitle/master/manifest.json') as f:
             manifest = json.load(f)
     except HTTPError as err:
         if err.code == 404:

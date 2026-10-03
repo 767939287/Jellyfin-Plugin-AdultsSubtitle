@@ -41,7 +41,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                 var curVersion = Assembly.GetExecutingAssembly().GetName().Version;
                 var lastestVersion = await GetLatestVersionAsync(cancellationToken);
                 _logger.LogInformation($"Updates {AdultsSubtitlePlugin.Instance!.Name} plugin to latest version:curVersion{curVersion} lastestVersion:{lastestVersion} ");
-                if (curVersion != null && curVersion.CompareTo(lastestVersion.Value.Item1) < 0)
+                if (lastestVersion != null && curVersion != null && curVersion.CompareTo(lastestVersion.Value.Item1) < 0)
                 {
                     using var httpClient = _httpClientFactory.CreateClient();
                     var response = await httpClient.GetAsync(lastestVersion.Value.Item2, cancellationToken).ConfigureAwait(false);
@@ -79,7 +79,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
         private async Task<(Version,string)?> GetLatestVersionAsync(CancellationToken cancellationToken)
         {
             using var httpClient = _httpClientFactory.CreateClient();
-            var response = await httpClient.GetAsync("https://raw.githubusercontent.com/fengymi/Jellyfin-Plugin-AdultsSubtitle/master/manifest.json", cancellationToken);
+            var response = await httpClient.GetAsync("https://raw.githubusercontent.com/767939287/Jellyfin-Plugin-AdultsSubtitle/master/manifest.json", cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             var packInfo = JsonSerializer.Deserialize<List<PackageInfo>>(content)?.FirstOrDefault();
             if (packInfo != null)
