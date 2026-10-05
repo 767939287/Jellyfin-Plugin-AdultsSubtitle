@@ -4,9 +4,34 @@
     "description": "AdultsSubtitle Plugin for Jellyfin",
     "overview": "AdultsSubtitle Plugin for Jellyfin",
     "owner": "AdultsSubtitle",
-    "category": "AdultsSubtitle",
+    "category": "Subtitles",
     "guid": "898269f2-f951-c3ff-b714-9e8f785be3b2",
-    "versions": [],
-    "imageUrl": "https://raw.githubusercontent.com/767939287/Jellyfin-Plugin-AdultsSubtitle/master/Jellyfin-Plugin-AdultsSubtitle/logo.png"
+    "imageUrl": "https://raw.githubusercontent.com/767939287/Jellyfin-Plugin-AdultsSubtitle/master/Jellyfin-Plugin-AdultsSubtitle/logo.png",
+    "versions": [
+      {
+        "version": "2.4.0.1",
+        "changelog": "Update project version to 2.4.0.1",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://mirror.ghproxy.com/https://github.com/767939287/Jellyfin-Plugin-AdultsSubtitle/releases/download/v2.4.0.1/AdultsSubtitle_v2.4.0.1.zip",
+        "checksum": "a4278c2a26cef61f60c66d18970a272f",
+        "timestamp": "2026-10-05T06:48:17"
+      },
+      {
+        "version": "2.4.0.0",
+        "changelog": "support jellyfin 12.0",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://mirror.ghproxy.com/https://github.com/767939287/Jellyfin-Plugin-AdultsSubtitle/releases/download/v2.4.0.0/AdultsSubtitle_v2.4.0.0.zip",
+        "checksum": "sha256:98004f0c8919c3f3e7d1b3bb12f45f132fcc4345c3864a9a08c2f1906e98b9c8",
+        "timestamp": "2026-10-05T06:33:58Z"
+      },
+      {
+        "version": "2.3.0.0",
+        "changelog": "support jellyfin 12.0",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://mirror.ghproxy.com/https://github.com/767939287/Jellyfin-Plugin-AdultsSubtitle/releases/download/v2.3.0.0/AdultsSubtitle_v2.3.0.0.zip",
+        "checksum": "sha256:bbd5163e7743a006ae2ccb7f1ef641c8c66a2e2e60cd355a2dc9b38a7a7cf51f",
+        "timestamp": "2026-10-05T05:20:07Z"
+      }
+    ]
   }
 ]
