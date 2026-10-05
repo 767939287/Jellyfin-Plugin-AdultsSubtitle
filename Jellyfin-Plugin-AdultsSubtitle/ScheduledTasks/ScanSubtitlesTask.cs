@@ -144,14 +144,19 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                 SourceTypes = [SourceType.Library],
             });
             progress.Report(0);
+
+            // 风险1优化：开始前一次性预扫描全部字幕文件，建内存索引。
+            // 按目录去重后每个目录只枚举一次，避免对每个视频都做目录 IO
+            // （3W 视频规模下可省下数万次磁盘枚举）。
+            var subtitleIndex = BuildSubtitleIndex(items, cancellationToken);
+
             double index = 1.0;
             foreach (var item in items)
             {
                 if (item is Movie movie)
                 {
-                    var language = "chi";
+                    var language = "zho";
                     var option = _libraryManager.GetLibraryOptions(item);
-                    var dirInfo = new DirectoryInfo(movie.ContainingFolderPath);
                    
                     if (option != null
                         && !movie.HasSubtitles
@@ -159,7 +164,7 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                         && option.SubtitleFetcherOrder.Contains(AdultsSubtitlePlugin.Instance.Name)
                         && Api.LanguagesMaps.TryGetValue(language, out var subCatLanguage)
                         && !movie.FileNameWithoutExtension.ToLower().EndsWith("-c")
-                        && !dirInfo.GetFiles().Any(p => p.Name.Contains(movie.FileNameWithoutExtension) && p.Extension == ".srt"))
+                        && !HasAnySrtSubtitle(subtitleIndex, movie))
                     {
 
                         _logger.LogInformation($"{movie.FileNameWithoutExtension} has no subtitle");
@@ -185,12 +190,21 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                                 ms.Position = 0;
                                 _logger.LogInformation($"subtitle {downloadUrl} download comlete");
 
-                                await _subtitleManager.UploadSubtitle(movie, new SubtitleResponse()
+                                // 内容校验：跳过 404 错误页 / HTML 页面，避免把网页当字幕保存。
+                                if (!Api.IsValidSubtitle(ms.ToArray()))
                                 {
-                                    Format = "srt",
-                                    Language = language,
-                                    Stream = ms,
-                                });
+                                    _logger.LogWarning($"subtitle {downloadUrl} 内容不是有效字幕（可能是 404/HTML），已跳过");
+                                }
+                                else
+                                {
+                                    ms.Position = 0;
+                                    await _subtitleManager.UploadSubtitle(movie, new SubtitleResponse()
+                                    {
+                                        Format = "srt",
+                                        Language = Api.NormalizeLanguage(language),
+                                        Stream = ms,
+                                    });
+                                }
                             }
                             
                             // var searchResult = await Api.SearchAsync(client, movie.FileNameWithoutExtension, cancellationToken);
@@ -237,6 +251,103 @@ namespace Jellyfin_Plugin_AdultsSubtitle.ScheduledTasks
                 Type = TaskTriggerInfoType.DailyTrigger,
                 TimeOfDayTicks = TimeSpan.FromHours(3).Ticks
             };
+        }
+
+        /// <summary>
+        /// 预扫描索引：目录(小写、规范化) -> 该目录下所有 .srt 文件名(小写)。
+        /// 只收录视频可能所在的目录与视频的元数据目录，避免遍历无关目录。
+        /// </summary>
+        private Dictionary<string, HashSet<string>> BuildSubtitleIndex(
+            IEnumerable<BaseItem> items, CancellationToken cancellationToken)
+        {
+            var index = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+            void IndexFolder(string? folder)
+            {
+                if (string.IsNullOrEmpty(folder))
+                {
+                    return;
+                }
+
+                var key = NormalizePath(folder);
+                if (index.ContainsKey(key))
+                {
+                    return;
+                }
+
+                var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    if (Directory.Exists(folder))
+                    {
+                        foreach (var file in Directory.EnumerateFiles(folder))
+                        {
+                            if (string.Equals(Path.GetExtension(file), ".srt", StringComparison.OrdinalIgnoreCase))
+                            {
+                                files.Add(Path.GetFileName(file));
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"扫描字幕目录失败: {folder}");
+                }
+
+                index[key] = files;
+            }
+
+            foreach (var item in items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                IndexFolder(item.ContainingFolderPath);
+                IndexFolder(item.GetInternalMetadataPath());
+            }
+
+            _logger.LogInformation($"字幕索引构建完成，共 {index.Count} 个目录");
+
+            return index;
+        }
+
+        /// <summary>
+        /// 基于预扫描索引判断视频目录或元数据目录中是否已存在该视频的字幕文件。
+        /// 纯内存查询，不做目录 IO。
+        /// 名称匹配与原逻辑一致（文件名包含视频基础名），可覆盖 .zho.srt / .zho.0.srt 等。
+        /// </summary>
+        private bool HasAnySrtSubtitle(Dictionary<string, HashSet<string>> index, Movie movie)
+        {
+            var baseName = movie.FileNameWithoutExtension;
+            if (string.IsNullOrEmpty(baseName))
+            {
+                return false;
+            }
+
+            static bool HasMatch(Dictionary<string, HashSet<string>> idx, string? folder, string name)
+            {
+                if (string.IsNullOrEmpty(folder))
+                {
+                    return false;
+                }
+
+                return idx.TryGetValue(NormalizePath(folder), out var files)
+                    && files.Any(f => f.Contains(name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            try
+            {
+                return HasMatch(index, movie.ContainingFolderPath, baseName)
+                    || HasMatch(index, movie.GetInternalMetadataPath(), baseName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"检查 {baseName} 字幕索引时出错");
+                return false;
+            }
+        }
+
+        private static string NormalizePath(string path)
+        {
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         }
     }
 }

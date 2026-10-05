@@ -117,10 +117,19 @@ namespace Jellyfin_Plugin_AdultsSubtitle
                 await stream.CopyToAsync(ms, cancellationToken);
                 ms.Position = 0;
                 _logger.LogInformation($"subtitle {targetSub} download comlete");
+
+                // 内容校验：避免把 404 错误页 / HTML 页面当作字幕返回。
+                if (!Api.IsValidSubtitle(ms.ToArray()))
+                {
+                    _logger.LogWarning($"subtitle {targetSub} 内容不是有效字幕（可能是 404/HTML）");
+                    throw new InvalidDataException($"Downloaded subtitle from {targetSub.Item1} is not a valid subtitle.");
+                }
+
+                ms.Position = 0;
                 return new SubtitleResponse()
                 {
                     Format = "srt",
-                    Language = targetSub.Item2,
+                    Language = Api.NormalizeLanguage(targetSub.Item2),
                     Stream = ms,
                 };
             }

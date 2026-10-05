@@ -16,6 +16,28 @@ namespace Jellyfin_Plugin_AdultsSubtitle
             {"zh-CN","zh-CN"},
             {"zh-TW","zh-TW"},
         };
+
+        /// <summary>
+        /// 将各种语言写法（ISO-639-1/2、站点语言等）统一归一为 Jellyfin 使用的
+        /// 三字母 ISO-639-2 语言代码，避免字幕文件名出现 .zho / .chi / .zh 混用。
+        /// 无法识别时默认返回中文的 "zho"。
+        /// </summary>
+        public static string NormalizeLanguage(string? language)
+        {
+            if (string.IsNullOrWhiteSpace(language))
+            {
+                return "zho";
+            }
+
+            return language.Trim().ToLowerInvariant() switch
+            {
+                "zh" or "zho" or "chi" or "zh-cn" or "zh-hans" or "zh-sg" => "zho",
+                "zh-tw" or "zh-hk" or "zh-hant" or "zh-mo" => "zho",
+                "en" or "eng" => "eng",
+                _ => language.Trim().ToLowerInvariant(),
+            };
+        }
+
         private static readonly HtmlParser _parser = new();
 
         private static readonly List<string> OrderSuffix = [
@@ -73,6 +95,59 @@ namespace Jellyfin_Plugin_AdultsSubtitle
         
         // 字幕文件检测必须>该值
         private const long MinFileSize = 1 * 1024;
+
+        /// <summary>
+        /// 校验下载到的内容是否为真正的字幕，而不是 404 错误页 / HTML / nginx 报错页。
+        /// 判定规则：
+        /// 1) 不能包含 HTML 页面特征（&lt;html&gt;、&lt;head&gt;、&lt;body&gt;、404 Not Found、nginx 等）；
+        /// 2) 必须包含 SRT/VTT 的时间轴标记 "--&gt;"。
+        /// </summary>
+        public static bool IsValidSubtitle(byte[] content)
+        {
+            if (content is null || content.Length == 0)
+            {
+                return false;
+            }
+
+            string text;
+            try
+            {
+                // 字幕多为 UTF-8，也可能带 BOM；这里用宽松解码，忽略非法字节。
+                text = System.Text.Encoding.UTF8.GetString(content);
+            }
+            catch
+            {
+                return false;
+            }
+
+            // 归一化后做不区分大小写的特征匹配
+            var lower = text.ToLowerInvariant();
+
+            // 1) HTML / 错误页特征：命中任意一个即视为非法
+            string[] invalidMarkers =
+            [
+                "<html",
+                "<head",
+                "<body",
+                "<title",
+                "<!doctype",
+                "404 not found",
+                "404找不到",
+                "nginx/",
+                "<center",
+                "</html",
+            ];
+            foreach (var marker in invalidMarkers)
+            {
+                if (lower.Contains(marker))
+                {
+                    return false;
+                }
+            }
+
+            // 2) 必须包含字幕时间轴标记
+            return text.Contains("-->");
+        }
         private static async Task<bool> TestContext(HttpClient client, string url, Action<string> logger)
         {
             try
