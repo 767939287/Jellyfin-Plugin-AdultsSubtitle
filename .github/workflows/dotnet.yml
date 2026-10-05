@@ -8,6 +8,11 @@ on:
   push:
     tags: 
       - "v*"
+
+# 需要写权限才能把更新后的 manifest 提交回仓库
+permissions:
+  contents: write
+
 env:
   dotnet-version: 10.0.x
   python-version: 3.8
@@ -21,6 +26,10 @@ jobs:
   
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -51,50 +60,41 @@ jobs:
         id: create_package
         shell: bash
         run: |
-          tag=$(git describe --tags --always)
+          # push tag 触发时，github.ref_name 就是 tag 名（如 v2.4.0.0），比 git describe 更可靠
+          tag="${{ github.ref_name }}"
           release_name="AdultsSubtitle_${tag}"
           emby_release_name="AdultsSubtitle_Emby_${tag}"
           
           # Pack files
           7z a -tzip "${release_name}.zip" "./bin/*"
-          echo "::set-output name=release_name::${release_name}"
-          echo "::set-output name=release_tag::${tag}"
-          echo "::set-output name=filename::${release_name}.zip"
-          
           7z a -tzip "${emby_release_name}.zip" "./bin.Emby/*"
-          echo "::set-output name=emby_release_name::${emby_release_name}"
-          echo "::set-output name=emby_release_name::${tag}"
-          echo "::set-output name=filename::${emby_release_name}.zip"
 
-      - uses: "marvinpinto/action-automatic-releases@latest"
+          # 使用新的 GITHUB_OUTPUT（::set-output 已废弃，会导致 outputs 为空）
+          {
+            echo "release_name=${release_name}"
+            echo "release_tag=${tag}"
+            echo "filename=${release_name}.zip"
+            echo "emby_release_name=${emby_release_name}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          tag_name: "${{ steps.create_package.outputs.release_tag }}"
           name: "${{ steps.create_package.outputs.release_tag }}"
-          automatic_release_tag: "${{ steps.create_package.outputs.release_tag }}"
           prerelease: false
-          #          "${{ steps.create_package.outputs.filename }}"
           files: |
             *.zip
-#      - name: Generate manifest
-#        run: python3 ./scripts/generate_manifest.py ./${{release_name}}.zip ${{steps.vars.outputs.VERSION}}
-#        env:
-#          CN_DOMAIN: ${{ vars.CN_DOMAIN }}
-#      - name: Publish manifest
-#        uses: svenstaro/upload-release-action@v2
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: ./manifest*.json
-#          tag: "manifest"
-#          overwrite: true
-#          file_glob: true
-#      - name: Update Manifest
-#        shell: cmd
-#        run: Manifest.exe ${{ steps.create_package.outputs.release_tag }}
-#
-#      - name: Commit & Push changes
-#        uses: stefanzweifel/git-auto-commit-action@v5
-#        with:
-#          branch: master
-#          commit_message: update manifest.json
-      
+
+      - name: Generate manifest
+        run: python3 ./scripts/generate_manifest.py "${{ steps.create_package.outputs.release_name }}.zip" "${{ steps.create_package.outputs.release_tag }}"
+        env:
+          CN_DOMAIN: ${{ vars.CN_DOMAIN }}
+
+      - name: Commit & Push manifest
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          branch: master
+          commit_message: "update manifest for ${{ steps.create_package.outputs.release_tag }}"
+          file_pattern: "manifest*.json"
 
